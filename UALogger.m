@@ -264,9 +264,14 @@ static UALoggerSeverity	UA__minimumSeverity			= UALoggerSeverityUnset;
 + (NSArray *)getConsoleLogEntriesForBundleName:(NSString *)bundleName {
 	NSMutableArray *logs = [NSMutableArray array];
 	
+	NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+	[dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss.SSS z"];
+	dateFormatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
+	dateFormatter.timeZone = [NSTimeZone timeZoneWithName:@"America/Los_Angeles"];
+	
 	aslmsg q, m;
 	int i;
-	const char *key, *val;
+	const char *key, *val, *time, *time_ns;
 	
 	NSString *queryTerm = bundleName;
 	
@@ -281,8 +286,14 @@ static UALoggerSeverity	UA__minimumSeverity			= UALoggerSeverityUnset;
 			NSString *keyString = [NSString stringWithUTF8String:(char *)key];
 			
 			val = asl_get(m, key);
+			time = asl_get(m, ASL_KEY_TIME);
+			time_ns = asl_get(m, ASL_KEY_TIME_NSEC);
 			
-			NSString *string = [NSString stringWithUTF8String:val];
+			NSTimeInterval secondsTimeInterval = [[NSString stringWithUTF8String:time] doubleValue];
+			NSTimeInterval fractionalSecondsTimeInterval = [[NSString stringWithUTF8String:time_ns] doubleValue] * 1e-9;
+			NSDate *date = [NSDate dateWithTimeIntervalSince1970:secondsTimeInterval + fractionalSecondsTimeInterval];
+			
+			NSString *string = [NSString stringWithFormat:@"%@ %s", [dateFormatter stringFromDate:date], val];
 			[tmpDict setObject:string forKey:keyString];
 		}
 		
